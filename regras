@@ -47,6 +47,10 @@ Filtro de produção por modelo. Calcular. Última preventiva - 2254 ou 2117
 - Subtrair desse total o contador total da última OS preventiva (TB02115, PREVENTIVA = 'S').
 - O filtro de páginas retorna equipamentos cujo resultado seja maior ou igual ao valor informado.
 
+7. Envio de dados
+- Todos os formulários e requisições do projeto devem enviar dados por POST.
+- Não utilizar parâmetros GET para filtros, mudança de tipo de OS ou operações do projeto.
+
 A ideia e filtrar por exemplo um bairro e ter um filtro para filtrar tambem qual equipamento rodou um numero de paginas, por exemplo vou digitar 1000 paginas desde a ultima preventiva. 
 
 Temos que criar um dado que vai retornar este valor para poder pesquisar o calculo será:

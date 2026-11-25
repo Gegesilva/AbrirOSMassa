@@ -1,8 +1,8 @@
 <?php
 include_once 'models/filtrosIni.php';
 
-$tipoOS = isset($_GET['tipo']) && in_array($_GET['tipo'], ['afericao', 'preventiva', 'revisao'], true)
-    ? $_GET['tipo']
+$tipoOS = isset($_POST['tipo']) && in_array($_POST['tipo'], ['afericao', 'preventiva', 'revisao'], true)
+    ? $_POST['tipo']
     : 'afericao';
 
 $resumos = [];
@@ -233,7 +233,21 @@ if ($tipoOS === 'afericao') {
         $paramsResumo[] = (int) $paginasDesdePreventivaFiltro;
     }
 
-    $sqlResumo = "WITH OSABERTAS AS (
+    $sqlResumo = "WITH BASE_FILTRADA AS (
+            SELECT
+                B.Serie,
+                B.Contrato,
+                B.Cliente
+            FROM BM_CONTRLEITURA_ABRIROS B
+            WHERE B.situacao <> 'I'
+                AND B.libleitura = 'N'
+                AND B.MesFechamento = ?
+                $condicaoContrato
+                $condicaoCidade
+                $condicaoPatFiltro
+                $condicaoNovosFiltros
+        ),
+        OSABERTAS AS (
             SELECT DISTINCT
                 TB02115_NUMSERIE AS Serie
             FROM TB02115
@@ -247,24 +261,18 @@ if ($tipoOS === 'afericao') {
             0 AS EquipamentosAferidos,
             SUM(CASE WHEN O.Serie IS NULL THEN 1 ELSE 0 END) AS EquipamentosNaoAferidos,
             SUM(CASE WHEN O.Serie IS NOT NULL THEN 1 ELSE 0 END) AS TotalOSAberta
-        FROM BM_CONTRLEITURA_ABRIROS B
+        FROM BASE_FILTRADA B
         $juncaoProducao
         LEFT JOIN OSABERTAS O ON O.Serie = B.Serie
-        WHERE B.situacao <> 'I'
-            AND B.libleitura = 'N'
-            AND B.MesFechamento = ?
-            $condicaoContrato
-            $condicaoCidade
-            $condicaoPatFiltro
-            $condicaoNovosFiltros
+        WHERE 1 = 1
             $condicaoProducao
         GROUP BY B.Contrato, B.Cliente
         ORDER BY B.Contrato
-        OPTION (RECOMPILE)";
+        OPTION (RECOMPILE, FORCE ORDER)";
 } else {
-    $situacaoFiltro = isset($_GET['situacaoFiltro']) ? trim($_GET['situacaoFiltro']) : '';
-    $modeloFiltro = isset($_GET['modeloFiltro']) ? trim($_GET['modeloFiltro']) : '';
-    $serieFiltro = isset($_GET['serieFiltro']) ? trim($_GET['serieFiltro']) : '';
+    $situacaoFiltro = isset($_POST['situacaoFiltro']) ? trim($_POST['situacaoFiltro']) : '';
+    $modeloFiltro = isset($_POST['modeloFiltro']) ? trim($_POST['modeloFiltro']) : '';
+    $serieFiltro = isset($_POST['serieFiltro']) ? trim($_POST['serieFiltro']) : '';
     $sqlResumo = "WITH OSABERTAS AS (
             SELECT DISTINCT
                 TB02115_NUMSERIE AS Serie

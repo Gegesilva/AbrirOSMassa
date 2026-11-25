@@ -7,17 +7,17 @@ ini_set('display_errors', '0');
 
 $mesAtual = date('m/Y');
 
-$mesFiltro = !empty($_GET['mesFiltro']) ? $_GET['mesFiltro'] : $mesAtual;
-$contratoFiltro = isset($_GET['contratoFiltro']) ? trim($_GET['contratoFiltro']) : '';
-$cidadeFiltro = isset($_GET['cidadeFiltro']) ? trim($_GET['cidadeFiltro']) : '';
-$patFiltro = isset($_GET['patFiltro']) ? trim($_GET['patFiltro']) : '';
-$bairroFiltro = isset($_GET['bairroFiltro']) ? trim($_GET['bairroFiltro']) : '';
-$estadoFiltro = isset($_GET['estadoFiltro']) ? trim($_GET['estadoFiltro']) : '';
-$areaFiltro = isset($_GET['areaFiltro']) ? trim($_GET['areaFiltro']) : '';
-$serieFiltro = isset($_GET['serieFiltro']) ? trim($_GET['serieFiltro']) : '';
-$modeloFiltro = isset($_GET['modeloFiltro']) ? trim($_GET['modeloFiltro']) : '';
-$paginasDesdePreventivaFiltro = isset($_GET['paginasDesdePreventivaFiltro'])
-  ? trim($_GET['paginasDesdePreventivaFiltro'])
+$mesFiltro = !empty($_POST['mesFiltro']) ? $_POST['mesFiltro'] : $mesAtual;
+$contratoFiltro = isset($_POST['contratoFiltro']) ? trim($_POST['contratoFiltro']) : '';
+$cidadeFiltro = isset($_POST['cidadeFiltro']) ? trim($_POST['cidadeFiltro']) : '';
+$patFiltro = isset($_POST['patFiltro']) ? trim($_POST['patFiltro']) : '';
+$bairroFiltro = isset($_POST['bairroFiltro']) ? trim($_POST['bairroFiltro']) : '';
+$estadoFiltro = isset($_POST['estadoFiltro']) ? trim($_POST['estadoFiltro']) : '';
+$areaFiltro = isset($_POST['areaFiltro']) ? trim($_POST['areaFiltro']) : '';
+$serieFiltro = isset($_POST['serieFiltro']) ? trim($_POST['serieFiltro']) : '';
+$modeloFiltro = isset($_POST['modeloFiltro']) ? trim($_POST['modeloFiltro']) : '';
+$paginasDesdePreventivaFiltro = isset($_POST['paginasDesdePreventivaFiltro'])
+  ? trim($_POST['paginasDesdePreventivaFiltro'])
   : '';
 
 if ($paginasDesdePreventivaFiltro !== '' && !ctype_digit($paginasDesdePreventivaFiltro)) {

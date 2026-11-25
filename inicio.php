@@ -71,13 +71,13 @@ include_once 'models/resumo_os.php';
             <img src="MEDIA/logo.png" class="logo-left" alt="Logo">
             <h4 class="mb-4">ABERTURA OS</h4>
 
-            <div class="row g-2 tipo-os-nav mx-auto mb-3" style="max-width: 1050px;">
-                <div class="col-md-4"><a class="btn w-100 d-flex align-items-center justify-content-center <?= $tipoOS === 'afericao' ? 'active' : '' ?>" href="?tipo=afericao">OS DE AFERIÇÃO</a></div>
-                <div class="col-md-4"><a class="btn w-100 d-flex align-items-center justify-content-center <?= $tipoOS === 'preventiva' ? 'active' : '' ?>" href="?tipo=preventiva">OS PREVENTIVA</a></div>
-                <div class="col-md-4"><a class="btn w-100 d-flex align-items-center justify-content-center <?= $tipoOS === 'revisao' ? 'active' : '' ?>" href="?tipo=revisao">REVISÃO INTERNA</a></div>
-            </div>
+            <form method="POST" action="inicio.php" class="row g-2 tipo-os-nav mx-auto mb-3" style="max-width: 1050px;">
+                <div class="col-md-4"><button type="submit" name="tipo" value="afericao" class="btn w-100 d-flex align-items-center justify-content-center <?= $tipoOS === 'afericao' ? 'active' : '' ?>">OS DE AFERIÇÃO</button></div>
+                <div class="col-md-4"><button type="submit" name="tipo" value="preventiva" class="btn w-100 d-flex align-items-center justify-content-center <?= $tipoOS === 'preventiva' ? 'active' : '' ?>">OS PREVENTIVA</button></div>
+                <div class="col-md-4"><button type="submit" name="tipo" value="revisao" class="btn w-100 d-flex align-items-center justify-content-center <?= $tipoOS === 'revisao' ? 'active' : '' ?>">REVISÃO INTERNA</button></div>
+            </form>
 
-            <form action="" method="GET" class="mx-auto bg-white p-3 rounded-4 shadow-sm text-start" style="max-width: 1050px;">
+            <form action="inicio.php" method="POST" class="mx-auto bg-white p-3 rounded-4 shadow-sm text-start" style="max-width: 1050px;">
                 <input type="hidden" name="tipo" value="<?= htmlspecialchars($tipoOS) ?>">
                 <div class="row g-3 align-items-end">
                     <?php if ($tipoOS !== 'revisao'): ?>
