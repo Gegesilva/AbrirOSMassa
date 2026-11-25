@@ -83,13 +83,23 @@ if ($tipoOS !== 'revisao') {
         $rowCompetencia = $consultarCompetenciaPreventiva($mesFiltro);
 
         if (!$rowCompetencia) {
-            $sqlCompetenciasAnteriores = "SELECT DISTINCT
-                    MesFechamento,
-                    TRY_CONVERT(date, '01/' + MesFechamento, 103) AS DataCompetencia
-                $baseCompetencia
-                    AND TRY_CONVERT(date, '01/' + MesFechamento, 103) < TRY_CONVERT(date, '01/' + ?, 103)
-                ORDER BY DataCompetencia DESC
-                OPTION (RECOMPILE)";
+            $sqlCompetenciasAnteriores = "WITH MESES AS (
+                    SELECT TRY_CONVERT(date, '01/' + ?, 103) AS DataCompetencia
+                    UNION ALL
+                    SELECT DATEADD(month, -1, DataCompetencia)
+                    FROM MESES
+                    WHERE DataCompetencia > '19000101'
+                )
+                SELECT
+                    FORMAT(M.DataCompetencia, 'MM/yyyy') AS MesFechamento
+                FROM MESES M
+                WHERE EXISTS (
+                    SELECT 1
+                    $baseCompetencia
+                        AND MesFechamento = FORMAT(M.DataCompetencia, 'MM/yyyy')
+                )
+                ORDER BY M.DataCompetencia DESC
+                OPTION (MAXRECURSION 0, RECOMPILE)";
             $stmtCompetenciasAnteriores = sqlsrv_query(
                 $conn,
                 $sqlCompetenciasAnteriores,
@@ -128,11 +138,23 @@ if ($tipoOS !== 'revisao') {
             : false;
 
         if (!$rowCompetencia) {
-            $sqlCompetencia = "SELECT TOP 1 MesFechamento
-                $baseCompetencia
-                    AND TRY_CONVERT(date, '01/' + MesFechamento, 103) <= TRY_CONVERT(date, '01/' + ?, 103)
-                ORDER BY TRY_CONVERT(date, '01/' + MesFechamento, 103) DESC
-                OPTION (RECOMPILE)";
+            $sqlCompetencia = "WITH MESES AS (
+                    SELECT TRY_CONVERT(date, '01/' + ?, 103) AS DataCompetencia
+                    UNION ALL
+                    SELECT DATEADD(month, -1, DataCompetencia)
+                    FROM MESES
+                    WHERE DataCompetencia > '19000101'
+                )
+                SELECT TOP 1
+                    FORMAT(M.DataCompetencia, 'MM/yyyy') AS MesFechamento
+                FROM MESES M
+                WHERE EXISTS (
+                    SELECT 1
+                    $baseCompetencia
+                        AND MesFechamento = FORMAT(M.DataCompetencia, 'MM/yyyy')
+                )
+                ORDER BY M.DataCompetencia DESC
+                OPTION (MAXRECURSION 0, RECOMPILE)";
             $stmtCompetencia = sqlsrv_query(
                 $conn,
                 $sqlCompetencia,
@@ -314,7 +336,7 @@ $stmtResumo = sqlsrv_query(
     $conn,
     $sqlResumo,
     $paramsResumo,
-    ['QueryTimeout' => 30]
+    ['QueryTimeout' => $tipoOS === 'preventiva' && $paginasDesdePreventivaFiltro !== '' ? 15 : 30]
 );
 
 if ($stmtResumo === false) {
