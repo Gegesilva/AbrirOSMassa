@@ -158,7 +158,7 @@ function gravaOSAll($conn, $mesReferencia, $tec, $cidade = null, $contrato = nul
     $stmtInsert = sqlsrv_query($conn, $sqlInsert, $params);
 
     if ($stmtInsert === false) {
-        return "Erro ao gravar. Detalhes: " . print_r(sqlsrv_errors(), true);
+        return exibirErroSql('INSERT TB02115 em massa');
     }
 
     sqlsrv_next_result($stmtInsert);
@@ -173,7 +173,10 @@ function gravaOSAll($conn, $mesReferencia, $tec, $cidade = null, $contrato = nul
     if ($rowsAffected > 0) {
         $sqlUpdateContador = "UPDATE TB00002 SET TB00002_COD = TB00002_COD + ? WHERE TB00002_TABELA = 'TB02115'";
                               
-        sqlsrv_query($conn, $sqlUpdateContador, array($rowsAffected));
+        $stmtContador = sqlsrv_query($conn, $sqlUpdateContador, array($rowsAffected));
+        if ($stmtContador === false) {
+            return exibirErroSql('UPDATE do contador TB00002');
+        }
 
         // --- INÍCIO DA GRAVAÇÃO DO HISTÓRICO ---
         $osListaParaSql = "'" . implode("', '", $osNumeros) . "'";
@@ -218,6 +221,9 @@ function gravaOSAll($conn, $mesReferencia, $tec, $cidade = null, $contrato = nul
         ";
 
         $stmtHistorico = sqlsrv_query($conn, $sqlHistorico);
+        if ($stmtHistorico === false) {
+            return exibirErroSql('INSERT do histórico TB02130');
+        }
 
         // --- FIM DA GRAVAÇÃO DO HISTÓRICO ---
 

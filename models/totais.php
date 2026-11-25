@@ -12,54 +12,62 @@ FROM (
             FROM BM_CONTRLEITURA_ABRIROS AS LEIT2
             WHERE LEIT2.Contrato = BM_CONTRLEITURA_ABRIROS.Contrato
             AND LEIT2.MesFechamento = dbo.BM_CONTRLEITURA_ABRIROS.MesFechamento
-            AND LEIT2.situacao = 'A' 
+            AND LEIT2.situacao <> 'I' 
             AND LEIT2.libleitura = 'N'
-            $condicaoCidadeInt) AS Equipamentos,
+            $condicaoCidadeInt
+            $condicaoNovosFiltrosInt) AS Equipamentos,
 
         (SELECT COUNT(LEIT2.Serie)
             FROM BM_CONTRLEITURA_ABRIROS AS LEIT2
             WHERE LEIT2.Contrato = BM_CONTRLEITURA_ABRIROS.Contrato
             AND LEIT2.Possui = 'Sim'
             AND LEIT2.MesFechamento = dbo.BM_CONTRLEITURA_ABRIROS.MesFechamento
-            AND LEIT2.situacao = 'A' 
+            AND LEIT2.situacao <> 'I' 
             AND LEIT2.libleitura = 'N'
-            $condicaoCidadeInt) AS EquipamentosAferidos,
+            $condicaoCidadeInt
+            $condicaoNovosFiltrosInt) AS EquipamentosAferidos,
 
         (SELECT COUNT(LEIT2.Serie)
             FROM BM_CONTRLEITURA_ABRIROS AS LEIT2
             WHERE LEIT2.Contrato = BM_CONTRLEITURA_ABRIROS.Contrato
             AND LEIT2.Possui = 'Não'
             AND LEIT2.MesFechamento = dbo.BM_CONTRLEITURA_ABRIROS.MesFechamento
-            AND LEIT2.situacao = 'A' 
+            AND LEIT2.situacao <> 'I' 
             AND LEIT2.libleitura = 'N'
-            $condicaoCidadeInt) AS EquipamentosNaoAferidos,
+            $condicaoCidadeInt
+            $condicaoNovosFiltrosInt) AS EquipamentosNaoAferidos,
 
         (SELECT COUNT(DISTINCT OS.TB02115_NUMSERIE)
             FROM TB02115 OS
             INNER JOIN BM_CONTRLEITURA_ABRIROS L3 ON OS.TB02115_NUMSERIE = L3.Serie
             WHERE L3.Contrato = BM_CONTRLEITURA_ABRIROS.Contrato
             AND L3.MesFechamento = dbo.BM_CONTRLEITURA_ABRIROS.MesFechamento
-            AND L3.situacao = 'A' 
+            AND L3.situacao <> 'I' 
             AND L3.libleitura = 'N'
             AND L3.Possui = 'Não'
             AND OS.TB02115_PREVENTIVA = 'A'
             AND OS.TB02115_DTFECHA IS NULL
             $condicaoCidadeIntOS
+            $condicaoNovosFiltrosIntOS
         ) AS TotalOSAberta
         
     FROM BM_CONTRLEITURA_ABRIROS
-    WHERE situacao = 'A' 
+    WHERE situacao <> 'I' 
         AND libleitura = 'N'
         AND MesFechamento = ?
         AND Possui = 'Não'
         $condicaoContrato
         $condicaoCidade
         $condicaoPatFiltro
+        $condicaoNovosFiltros
 ) AS TabelaBase";
 
 // Passamos o $mesFiltro APENAS UMA VEZ agora, pois a query base só exige ele uma vez
 $paramsTotais = array($mesFiltro);
 $stmtTotais = sqlsrv_query($conn, $sqlTotais, $paramsTotais);
+if ($stmtTotais === false) {
+    die('<pre>' . htmlspecialchars(exibirErroSql('Totais de aferição'), ENT_QUOTES, 'UTF-8') . '</pre>');
+}
 
 $totais = [
     'equipamentos' => 0,

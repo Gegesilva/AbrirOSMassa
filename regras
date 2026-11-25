@@ -9,6 +9,8 @@ George esta trabalhando no layout das telas. avalia a regra.
   - DTFECHA preenchido: sinaliza a última OS existente.
 * A consulta parte da competência selecionada e retrocede mês a mês se não encontrar dados nas tabelas correspondentes.
 * A abertura exige confirmação em popup.
+
+
 2. OS preventiva (preventiva = S)
 - Leituras — TB02117 e TB02254: consultar os dados dos cinco contadores.
 - OS preventiva — TB02115: localizar a última OS com PREVENTIVA = 'S'.
@@ -16,6 +18,8 @@ George esta trabalhando no layout das telas. avalia a regra.
 - Exibir qts dias desde a preventiva.
 - A consulta parte da competência selecionada e retrocede mês a mês se não encontrar dados nas tabelas correspondentes.
 - A abertura exige confirmação em popup.
+
+
 3. OS de revisão interna (preventiva = I)
 - Exibe modelo, situação da TB02054, série e patrimônio.
 - Filtros: situação, modelo e série.
@@ -24,4 +28,26 @@ George esta trabalhando no layout das telas. avalia a regra.
 - A abertura exige confirmação em popup.
 
 
+
+
+
+
+
+
+
+
+
+
 Filtro de produção por modelo. Calcular. Última preventiva - 2254 ou 2117
+
+4. Padrão de escrita dos INSERTs
+- Todo INSERT do projeto, sem exceção, deve declarar um campo por linha.
+- O SELECT ou VALUES correspondente também deve manter um valor por linha e na mesma ordem dos campos.
+- Não agrupar dois campos ou dois valores na mesma linha.
+- Manter este padrão em todos os tipos de OS e em todos os scripts atuais ou futuros.
+- Preservar o padrão de telas do projeto: listagem principal com linhas de detalhes abertas em cascata.
+
+5. Tratamento de erros SQL
+- Toda falha retornada pelo SQL Server deve exibir o código e a mensagem de sqlsrv_errors.
+- Não substituir o erro do banco por mensagem genérica.
+- Manter o rollback quando a falha ocorrer durante uma transação.

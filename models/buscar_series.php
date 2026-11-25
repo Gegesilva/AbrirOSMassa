@@ -9,6 +9,7 @@ if (!isset($_SESSION["login"])) {
     echo "Sessão expirada.";
     exit;
 }
+session_write_close();
 
 if (isset($_POST['contrato']) && isset($_POST['mes'])) {
     $contrato = $_POST['contrato'];
@@ -16,6 +17,10 @@ if (isset($_POST['contrato']) && isset($_POST['mes'])) {
     $patFiltro = $_POST['patFiltro'];
 
     $cidade = $_POST['cidade'];
+    $bairroFiltro = isset($_POST['bairroFiltro']) ? trim($_POST['bairroFiltro']) : '';
+    $estadoFiltro = isset($_POST['estadoFiltro']) ? trim($_POST['estadoFiltro']) : '';
+    $areaFiltro = isset($_POST['areaFiltro']) ? trim($_POST['areaFiltro']) : '';
+    $serieFiltro = isset($_POST['serieFiltro']) ? trim($_POST['serieFiltro']) : '';
 
     $condicaoCidade = "";
     if ($cidade != "") {
@@ -26,6 +31,12 @@ if (isset($_POST['contrato']) && isset($_POST['mes'])) {
     if ($patFiltro != "") {
         $condicaoPatFiltro = " AND (PAT LIKE '%$patFiltro%' OR Serie LIKE '%$patFiltro%')";
     }
+
+    $condicaoNovosFiltros = "";
+    if ($bairroFiltro !== '') $condicaoNovosFiltros .= " AND Bairro LIKE '%$bairroFiltro%' ";
+    if ($estadoFiltro !== '') $condicaoNovosFiltros .= " AND Estado LIKE '%$estadoFiltro%' ";
+    if ($serieFiltro !== '') $condicaoNovosFiltros .= " AND Serie LIKE '%$serieFiltro%' ";
+    if ($areaFiltro !== '') $condicaoNovosFiltros .= " AND EXISTS (SELECT 1 FROM TB02112 EQ WHERE EQ.TB02112_NUMSERIE = Serie AND EQ.TB02112_TIPOINTERV LIKE '%$areaFiltro%') ";
 
     $sql = "SELECT
                 Serie AS SERAL,
@@ -75,27 +86,35 @@ if (isset($_POST['contrato']) && isset($_POST['mes'])) {
                 UltimaLeit.A3 AS LEITOR_A3,
                 UltimaLeit.A3COR AS LEITOR_A3_COR,
                 OSAFERICAO.DTCAD AS DATA_OS_AFERICAO,
+                OSAFERICAO.DTFECHA AS FECHAMENTO_OS_AFERICAO,
                 OSAFERICAO.STATUS AS STATUS_OS_AFERICAO,
+                OSAFERICAO.TECNICO AS TECNICO_OS_AFERICAO,
                 OSAFERICAO.OS AS OS_AFERICAO,
                 OSAFERICAO.PB AS LEITURA_OS_PB,
                 OSAFERICAO.COR AS LEITURA_OS_COR,
 
                 CASE
-                    WHEN OSAFERICAO.DTCAD IS NOT NULL THEN 'TEMOS'
+                    WHEN OSAFERICAO.DTCAD IS NOT NULL AND OSAFERICAO.DTFECHA IS NULL THEN 'TEMOS'
                     ELSE 'NTEMOS'
                 END AS TEMOS
             FROM BM_CONTRLEITURA_ABRIROS
+            INNER JOIN TB02112 EQ
+                ON EQ.TB02112_NUMSERIE = BM_CONTRLEITURA_ABRIROS.Serie
+                AND EQ.TB02112_CODIGO = BM_CONTRLEITURA_ABRIROS.Contrato
             OUTER APPLY (
 		       SELECT TOP 1 
                     TB02115_DTCAD DTCAD,
+                    TB02115_DTFECHA DTFECHA,
                     TB02115_CODIGO OS,
                     TB01073_NOME STATUS,
+                    TB01024_NOME TECNICO,
                     TB02115_CONTPB PB,
                     TB02115_CONTCOLOR COR
                 FROM TB02115 
                 LEFT JOIN TB01073 ON TB01073_CODIGO = TB02115_STATUS
+                LEFT JOIN TB01024 ON TB01024_CODIGO = TB02115_CODTEC
                 WHERE TB02115_NUMSERIE = BM_CONTRLEITURA_ABRIROS.Serie
-                    AND TB02115_PREVENTIVA IN ('I','N')
+                    AND TB02115_PREVENTIVA = 'A'
                    -- AND TB02115_DTFECHA IS NULL
                 ORDER BY TB02115_DTCAD DESC
 	        ) OSAFERICAO
@@ -129,19 +148,20 @@ if (isset($_POST['contrato']) && isset($_POST['mes'])) {
                 ORDER BY TB02254_DATEREADING DESC
             ) UltimaLeitOrbix
 
-            WHERE situacao = 'A' 
-                AND libleitura = 'N'
+            WHERE EQ.TB02112_SITUACAO <> 'I'
+                AND EQ.TB02112_LIBLEITURA = 'N'
                 AND MesFechamento = ?
                 AND Contrato = ?
                 AND Possui = 'Não'
                 $condicaoCidade
-                $condicaoPatFiltro";
+                $condicaoPatFiltro
+                $condicaoNovosFiltros";
 
     $params = array($mes, $contrato);
     $stmt = sqlsrv_query($conn, $sql, $params);
 
     if ($stmt === false) {
-        echo "<div class='alert alert-danger'>Erro ao buscar dados.</div>";
+        echo "<div class='alert alert-danger'>" . htmlspecialchars(exibirErroSql('Consulta de séries da aferição'), ENT_QUOTES, 'UTF-8') . "</div>";
         exit;
     }
 
@@ -280,6 +300,7 @@ if (isset($_POST['contrato']) && isset($_POST['mes'])) {
             echo ' </button>';
             echo ' <div class="text-start bg-light p-2 rounded border">';
             echo '  <p class="mb-0 text-muted" style="font-size: 10px;"><strong>Status:</strong> ' . formataDado($row['STATUS_OS_AFERICAO']) . '</p>';
+            echo '  <p class="mb-0 text-muted" style="font-size: 10px;"><strong>Técnico:</strong> ' . formataDado($row['TECNICO_OS_AFERICAO']) . '</p>';
             echo '  <p class="mb-0 text-muted" style="font-size: 10px;"><strong>Data OS:</strong> ' . formataDado($row['DATA_OS_AFERICAO']) . '</p>';
             echo ' </div>';
         }

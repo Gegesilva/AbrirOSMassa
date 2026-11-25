@@ -21,6 +21,9 @@ $sql = "SELECT
    AND TB01066_SENHA = '$senha'";
 
 $stmt = sqlsrv_query($conn, $sql);
+if ($stmt === false) {
+    die('<pre>' . htmlspecialchars(exibirErroSql('Login'), ENT_QUOTES, 'UTF-8') . '</pre>');
+}
 while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
     $usuario = $row['Usuario'];
     $senha = $row['Senha'];
