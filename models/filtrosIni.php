@@ -16,6 +16,13 @@ $estadoFiltro = isset($_GET['estadoFiltro']) ? trim($_GET['estadoFiltro']) : '';
 $areaFiltro = isset($_GET['areaFiltro']) ? trim($_GET['areaFiltro']) : '';
 $serieFiltro = isset($_GET['serieFiltro']) ? trim($_GET['serieFiltro']) : '';
 $modeloFiltro = isset($_GET['modeloFiltro']) ? trim($_GET['modeloFiltro']) : '';
+$paginasDesdePreventivaFiltro = isset($_GET['paginasDesdePreventivaFiltro'])
+  ? trim($_GET['paginasDesdePreventivaFiltro'])
+  : '';
+
+if ($paginasDesdePreventivaFiltro !== '' && !ctype_digit($paginasDesdePreventivaFiltro)) {
+  $paginasDesdePreventivaFiltro = '';
+}
 
 $condicaoContrato = "";
 if ($contratoFiltro != "") {

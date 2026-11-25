@@ -40,6 +40,20 @@ George esta trabalhando no layout das telas. avalia a regra.
 
 Filtro de produção por modelo. Calcular. Última preventiva - 2254 ou 2117
 
+6. Filtro de páginas desde a preventiva
+- Aplicável exclusivamente à OS preventiva.
+- Para cada equipamento, obter a última leitura da TB02117 e a última leitura da TB02254.
+- Somar os cinco contadores de cada leitura e usar o maior total entre as duas tabelas.
+- Subtrair desse total o contador total da última OS preventiva (TB02115, PREVENTIVA = 'S').
+- O filtro de páginas retorna equipamentos cujo resultado seja maior ou igual ao valor informado.
+
+A ideia e filtrar por exemplo um bairro e ter um filtro para filtrar tambem qual equipamento rodou um numero de paginas, por exemplo vou digitar 1000 paginas desde a ultima preventiva. 
+
+Temos que criar um dado que vai retornar este valor para poder pesquisar o calculo será:
+
+Contador da ultima preventiva menos o ultimo contador da TB02117 ou TB02254 o que for maior.
+
+
 4. Padrão de escrita dos INSERTs
 - Todo INSERT do projeto, sem exceção, deve declarar um campo por linha.
 - O SELECT ou VALUES correspondente também deve manter um valor por linha e na mesma ordem dos campos.

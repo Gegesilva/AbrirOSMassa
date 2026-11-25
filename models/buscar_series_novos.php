@@ -17,6 +17,13 @@ $areaFiltro = isset($_POST['areaFiltro']) ? trim($_POST['areaFiltro']) : '';
 $serieFiltro = isset($_POST['serieFiltro']) ? trim($_POST['serieFiltro']) : '';
 $modeloFiltro = isset($_POST['modeloFiltro']) ? trim($_POST['modeloFiltro']) : '';
 $situacaoFiltro = isset($_POST['situacaoFiltro']) ? trim($_POST['situacaoFiltro']) : '';
+$paginasDesdePreventivaFiltro = isset($_POST['paginasDesdePreventivaFiltro'])
+    ? trim($_POST['paginasDesdePreventivaFiltro'])
+    : '';
+
+if ($paginasDesdePreventivaFiltro !== '' && !ctype_digit($paginasDesdePreventivaFiltro)) {
+    $paginasDesdePreventivaFiltro = '';
+}
 
 if ($tipo === 'preventiva') {
     $sql = "SELECT
@@ -35,9 +42,16 @@ if ($tipo === 'preventiva') {
             P.TB02115_CODIGO AS UltimaPreventiva,
             P.TB02115_DTCAD AS DataPreventiva,
             P.TB02115_DTFECHA AS FechamentoPreventiva,
+            P.TB02115_CONTTOTAL AS ContadorPreventiva,
             TP.TB01024_NOME AS Tecnico,
             SP.TB01073_NOME AS StatusOS,
             DATEDIFF(DAY, P.TB02115_DTCAD, GETDATE()) AS DiasPreventiva,
+            CASE
+                WHEN P.TB02115_CODIGO IS NULL THEN NULL
+                WHEN ISNULL(L2254.Contador2254, 0) >= ISNULL(L2117.Contador2117, 0)
+                    THEN ISNULL(L2254.Contador2254, 0) - ISNULL(P.TB02115_CONTTOTAL, 0)
+                ELSE ISNULL(L2117.Contador2117, 0) - ISNULL(P.TB02115_CONTTOTAL, 0)
+            END AS PaginasDesdePreventiva,
             C.TB02115_CODIGO AS UltimaCorretiva,
             C.DataIntervencao,
             C.Contador
@@ -77,11 +91,36 @@ if ($tipo === 'preventiva') {
         ) L
         OUTER APPLY (
             SELECT TOP 1
+                ISNULL(O.TB02254_A4MONO, 0)
+                + ISNULL(O.TB02254_A4COLOR, 0)
+                + ISNULL(O.TB02254_SCANNER, 0)
+                + ISNULL(O.TB02254_A3MONO, 0)
+                + ISNULL(O.TB02254_A3COLOR, 0) AS Contador2254
+            FROM TB02254 O
+            WHERE O.TB02254_SERIALNUMBER = B.Serie
+                AND O.TB02254_CONTRACT = B.Contrato
+            ORDER BY O.TB02254_DATEREADING DESC
+        ) L2254
+        OUTER APPLY (
+            SELECT TOP 1
+                ISNULL(R.TB02117_MEDATUAL, 0)
+                + ISNULL(R.TB02117_MEDATUALC, 0)
+                + ISNULL(R.TB02117_MEDATUALDG, 0)
+                + ISNULL(R.TB02117_MEDATUALGF, 0)
+                + ISNULL(R.TB02117_MEDATUALGFC, 0) AS Contador2117
+            FROM TB02117 R
+            WHERE R.TB02117_NUMSERIE = B.Serie
+                AND R.TB02117_CODIGO = B.Contrato
+            ORDER BY R.TB02117_DATA DESC
+        ) L2117
+        OUTER APPLY (
+            SELECT TOP 1
                 O.TB02115_CODIGO,
                 O.TB02115_DTCAD,
                 O.TB02115_DTFECHA,
                 O.TB02115_CODTEC,
-                O.TB02115_STATUS
+                O.TB02115_STATUS,
+                O.TB02115_CONTTOTAL
             FROM TB02115 O
             WHERE O.TB02115_NUMSERIE = B.Serie
                 AND O.TB02115_PREVENTIVA = 'S'
@@ -114,6 +153,19 @@ if ($tipo === 'preventiva') {
                 WHERE EQ.TB02112_NUMSERIE = B.Serie
                     AND EQ.TB02112_TIPOINTERV LIKE '%' + ? + '%'
             ))
+            AND (
+                ? = ''
+                OR (
+                    P.TB02115_CONTTOTAL IS NOT NULL
+                    AND (
+                        CASE
+                            WHEN ISNULL(L2254.Contador2254, 0) >= ISNULL(L2117.Contador2117, 0)
+                                THEN ISNULL(L2254.Contador2254, 0)
+                            ELSE ISNULL(L2117.Contador2117, 0)
+                        END
+                    ) - P.TB02115_CONTTOTAL >= ?
+                )
+            )
         ORDER BY B.Serie";
     $stmt = sqlsrv_query($conn, $sql, [
         $grupo,
@@ -127,7 +179,9 @@ if ($tipo === 'preventiva') {
         $modeloFiltro,
         $modeloFiltro,
         $areaFiltro,
-        $areaFiltro
+        $areaFiltro,
+        $paginasDesdePreventivaFiltro,
+        $paginasDesdePreventivaFiltro
     ]);
 } elseif ($tipo === 'revisao') {
     $sql = "SELECT
@@ -211,7 +265,7 @@ while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
     if ($tipo === 'preventiva') {
         echo '<div class="col-md-2 border-end"><p class="mb-1 fw-semibold small text-dark">Localização</p><p class="mb-0 text-muted small">' . h($row['Cidade']) . ' - ' . h($row['Estado']) . '</p><p class="mb-0 text-muted small">' . h($row['Bairro']) . '</p></div>';
         echo '<div class="col-md-3 border-end"><p class="mb-1 fw-semibold small text-dark">Última leitura - ' . dataBr($row['DataLeitura']) . '</p><div class="d-flex flex-wrap gap-1"><span class="badge bg-primary">A4: ' . numero($row['A4Mono']) . '</span><span class="badge bg-primary">A4C: ' . numero($row['A4Color']) . '</span><span class="badge bg-primary">DG: ' . numero($row['Scanner']) . '</span><span class="badge bg-primary">A3: ' . numero($row['A3Mono']) . '</span><span class="badge bg-primary">A3C: ' . numero($row['A3Color']) . '</span></div></div>';
-        echo '<div class="col-md-2 border-end"><p class="mb-1 fw-semibold small text-dark">Última preventiva</p><p class="mb-0 text-muted small">OS: ' . h($row['UltimaPreventiva']) . '</p><p class="mb-0 text-muted small">Data: ' . dataBr($row['DataPreventiva']) . '</p><p class="mb-0 text-muted small">Dias: ' . h($row['DiasPreventiva']) . '</p></div>';
+        echo '<div class="col-md-2 border-end"><p class="mb-1 fw-semibold small text-dark">Última preventiva</p><p class="mb-0 text-muted small">OS: ' . h($row['UltimaPreventiva']) . '</p><p class="mb-0 text-muted small">Data: ' . dataBr($row['DataPreventiva']) . '</p><p class="mb-0 text-muted small">Dias: ' . h($row['DiasPreventiva']) . '</p><p class="mb-0 text-muted small">Páginas: ' . numero($row['PaginasDesdePreventiva']) . '</p></div>';
         echo '<div class="col-md-2 border-end"><p class="mb-1 fw-semibold small text-dark">Corretiva/instalação</p><p class="mb-0 text-muted small">OS: ' . h($row['UltimaCorretiva']) . '</p><p class="mb-0 text-muted small">Data: ' . dataBr($row['DataIntervencao']) . '</p><p class="mb-0 text-muted small">Contador: ' . numero($row['Contador']) . '</p></div>';
     } else {
         echo '<div class="col-md-5 border-end"><p class="mb-1 fw-semibold small text-dark">Situação na TB02054</p><p class="mb-0 text-muted">' . h($row['Situacao']) . '</p></div>';

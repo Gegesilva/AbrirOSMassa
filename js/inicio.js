@@ -96,7 +96,7 @@ function abrirSeries(event, contrato, linhaAtual, mes, patFiltro) {
     dados.append('mes', mes || '');
     dados.append('cidade', cidade ? cidade.value : '');
     dados.append('patFiltro', patFiltro || '');
-    ['bairroFiltro', 'estadoFiltro', 'areaFiltro', 'serieFiltro', 'modeloFiltro', 'situacaoFiltro'].forEach(function (id) {
+    ['bairroFiltro', 'estadoFiltro', 'areaFiltro', 'serieFiltro', 'modeloFiltro', 'situacaoFiltro', 'paginasDesdePreventivaFiltro'].forEach(function (id) {
         const campo = document.getElementById(id) || document.querySelector('[name="' + id + '"]');
         dados.append(id, campo ? campo.value : '');
     });

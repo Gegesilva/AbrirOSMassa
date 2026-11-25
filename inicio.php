@@ -71,13 +71,13 @@ include_once 'models/resumo_os.php';
             <img src="MEDIA/logo.png" class="logo-left" alt="Logo">
             <h4 class="mb-4">ABERTURA OS</h4>
 
-            <div class="row g-2 tipo-os-nav mx-auto mb-3" style="max-width: 900px;">
+            <div class="row g-2 tipo-os-nav mx-auto mb-3" style="max-width: 1050px;">
                 <div class="col-md-4"><a class="btn w-100 d-flex align-items-center justify-content-center <?= $tipoOS === 'afericao' ? 'active' : '' ?>" href="?tipo=afericao">OS DE AFERIÇÃO</a></div>
                 <div class="col-md-4"><a class="btn w-100 d-flex align-items-center justify-content-center <?= $tipoOS === 'preventiva' ? 'active' : '' ?>" href="?tipo=preventiva">OS PREVENTIVA</a></div>
                 <div class="col-md-4"><a class="btn w-100 d-flex align-items-center justify-content-center <?= $tipoOS === 'revisao' ? 'active' : '' ?>" href="?tipo=revisao">REVISÃO INTERNA</a></div>
             </div>
 
-            <form action="" method="GET" class="mx-auto bg-white p-3 rounded-4 shadow-sm text-start" style="max-width: 900px;">
+            <form action="" method="GET" class="mx-auto bg-white p-3 rounded-4 shadow-sm text-start" style="max-width: 1050px;">
                 <input type="hidden" name="tipo" value="<?= htmlspecialchars($tipoOS) ?>">
                 <div class="row g-3 align-items-end">
                     <?php if ($tipoOS !== 'revisao'): ?>
@@ -89,7 +89,10 @@ include_once 'models/resumo_os.php';
                         <div class="col-md-2"><label class="form-label text-muted small fw-bold mb-1">Estado</label><input class="form-control bg-light border-0 py-2" id="estadoFiltro" name="estadoFiltro" value="<?= htmlspecialchars($estadoFiltro) ?>"></div>
                         <div class="col-md-3"><label class="form-label text-muted small fw-bold mb-1">Área de intervenção</label><input class="form-control bg-light border-0 py-2" id="areaFiltro" name="areaFiltro" value="<?= htmlspecialchars($areaFiltro) ?>"></div>
                         <div class="col-md-2"><label class="form-label text-muted small fw-bold mb-1">Série</label><input class="form-control bg-light border-0 py-2" id="serieFiltro" name="serieFiltro" value="<?= htmlspecialchars($serieFiltro) ?>"></div>
-                        <?php if ($tipoOS === 'preventiva'): ?><div class="col-md-2"><label class="form-label text-muted small fw-bold mb-1">Modelo / produção</label><input class="form-control bg-light border-0 py-2" id="modeloFiltro" name="modeloFiltro" value="<?= htmlspecialchars($modeloFiltro) ?>"></div><?php endif; ?>
+                        <?php if ($tipoOS === 'preventiva'): ?>
+                            <div class="col-md-2"><label class="form-label text-muted small fw-bold mb-1">Modelo</label><input class="form-control bg-light border-0 py-2" id="modeloFiltro" name="modeloFiltro" value="<?= htmlspecialchars($modeloFiltro) ?>"></div>
+                            <div class="col-md-3"><label class="form-label text-muted small fw-bold mb-1">Páginas mín. desde preventiva</label><input type="number" min="0" step="1" class="form-control bg-light border-0 py-2" id="paginasDesdePreventivaFiltro" name="paginasDesdePreventivaFiltro" value="<?= htmlspecialchars($paginasDesdePreventivaFiltro) ?>" placeholder="Ex.: 1000"></div>
+                        <?php endif; ?>
                     <?php else: ?>
                         <div class="col-md-3"><label class="form-label text-muted small fw-bold mb-1">Situação</label><input class="form-control bg-light border-0 py-2" name="situacaoFiltro" value="<?= htmlspecialchars($situacaoFiltro) ?>"></div>
                         <div class="col-md-4"><label class="form-label text-muted small fw-bold mb-1">Modelo</label><input class="form-control bg-light border-0 py-2" name="modeloFiltro" value="<?= htmlspecialchars($modeloFiltro) ?>"></div>

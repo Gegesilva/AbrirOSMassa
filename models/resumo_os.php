@@ -23,9 +23,6 @@ if ($tipoOS !== 'revisao') {
     $regraEquipamento = $tipoOS === 'afericao'
         ? "EQ.TB02112_SITUACAO <> 'I' AND EQ.TB02112_LIBLEITURA = 'N'"
         : "B.situacao <> 'I' AND B.libleitura = 'N'";
-    // A competência vem da base mensal. As leituras de TB02117 e TB02254
-    // são obtidas somente ao abrir o detalhe da série, evitando uma varredura
-    // completa dessas duas tabelas antes de a tela carregar.
     $dadosCorrespondentes = '';
     $baseCompetencia = "FROM $origemCompetencia
         WHERE $regraEquipamento
@@ -35,41 +32,120 @@ if ($tipoOS !== 'revisao') {
             $condicaoCidade
             $condicaoPatFiltro
             $condicaoNovosFiltros";
-    $sqlCompetenciaAtual = "SELECT TOP 1 MesFechamento
-        $baseCompetencia
-            AND MesFechamento = ?
-        OPTION (RECOMPILE)";
-    $stmtCompetencia = sqlsrv_query(
-        $conn,
-        $sqlCompetenciaAtual,
-        [$mesFiltro],
-        ['QueryTimeout' => 10]
-    );
-    if ($stmtCompetencia === false) {
-        die('<pre>' . htmlspecialchars(exibirErroSql('Consulta da competência selecionada'), ENT_QUOTES, 'UTF-8') . '</pre>');
-    }
-    $rowCompetencia = $stmtCompetencia !== false
-        ? sqlsrv_fetch_array($stmtCompetencia, SQLSRV_FETCH_ASSOC)
-        : false;
+    if ($tipoOS === 'preventiva') {
+        $consultarCompetenciaPreventiva = function ($competencia) use ($conn, $baseCompetencia) {
+            $dataCompetencia = DateTime::createFromFormat('!m/Y', $competencia);
 
-    if (!$rowCompetencia) {
-        $sqlCompetencia = "SELECT TOP 1 MesFechamento
+            if (!$dataCompetencia || $dataCompetencia->format('m/Y') !== $competencia) {
+                return false;
+            }
+
+            $inicio = $dataCompetencia->format('Y-m-d');
+            $sqlCompetenciaPreventiva = "WITH LEITURAS_COMPETENCIA AS (
+                    SELECT
+                        R.TB02117_NUMSERIE AS Serie,
+                        R.TB02117_CODIGO AS Contrato
+                    FROM TB02117 R
+                    WHERE R.TB02117_DATA >= CONVERT(date, ?, 23)
+                        AND R.TB02117_DATA < DATEADD(month, 1, CONVERT(date, ?, 23))
+                    UNION
+                    SELECT
+                        O.TB02254_SERIALNUMBER AS Serie,
+                        O.TB02254_CONTRACT AS Contrato
+                    FROM TB02254 O
+                    WHERE O.TB02254_DATEREADING >= CONVERT(date, ?, 23)
+                        AND O.TB02254_DATEREADING < DATEADD(month, 1, CONVERT(date, ?, 23))
+                )
+                SELECT TOP 1 MesFechamento
+                $baseCompetencia
+                    AND MesFechamento = ?
+                    AND EXISTS (
+                        SELECT 1
+                        FROM LEITURAS_COMPETENCIA L
+                        WHERE L.Serie = B.Serie
+                            AND L.Contrato = B.Contrato
+                    )
+                OPTION (RECOMPILE)";
+            $stmt = sqlsrv_query(
+                $conn,
+                $sqlCompetenciaPreventiva,
+                [$inicio, $inicio, $inicio, $inicio, $competencia],
+                ['QueryTimeout' => 20]
+            );
+
+            if ($stmt === false) {
+                die('<pre>' . htmlspecialchars(exibirErroSql('Consulta da competência preventiva'), ENT_QUOTES, 'UTF-8') . '</pre>');
+            }
+
+            return sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
+        };
+
+        $rowCompetencia = $consultarCompetenciaPreventiva($mesFiltro);
+
+        if (!$rowCompetencia) {
+            $sqlCompetenciasAnteriores = "SELECT DISTINCT
+                    MesFechamento,
+                    TRY_CONVERT(date, '01/' + MesFechamento, 103) AS DataCompetencia
+                $baseCompetencia
+                    AND TRY_CONVERT(date, '01/' + MesFechamento, 103) < TRY_CONVERT(date, '01/' + ?, 103)
+                ORDER BY DataCompetencia DESC
+                OPTION (RECOMPILE)";
+            $stmtCompetenciasAnteriores = sqlsrv_query(
+                $conn,
+                $sqlCompetenciasAnteriores,
+                [$mesFiltro],
+                ['QueryTimeout' => 20]
+            );
+
+            if ($stmtCompetenciasAnteriores === false) {
+                die('<pre>' . htmlspecialchars(exibirErroSql('Retrocesso de competência preventiva'), ENT_QUOTES, 'UTF-8') . '</pre>');
+            }
+
+            while ($competenciaAnterior = sqlsrv_fetch_array($stmtCompetenciasAnteriores, SQLSRV_FETCH_ASSOC)) {
+                $rowCompetencia = $consultarCompetenciaPreventiva($competenciaAnterior['MesFechamento']);
+
+                if ($rowCompetencia) {
+                    break;
+                }
+            }
+        }
+    } else {
+        $sqlCompetenciaAtual = "SELECT TOP 1 MesFechamento
             $baseCompetencia
-                AND TRY_CONVERT(date, '01/' + MesFechamento, 103) <= TRY_CONVERT(date, '01/' + ?, 103)
-            ORDER BY TRY_CONVERT(date, '01/' + MesFechamento, 103) DESC
+                AND MesFechamento = ?
             OPTION (RECOMPILE)";
         $stmtCompetencia = sqlsrv_query(
             $conn,
-            $sqlCompetencia,
+            $sqlCompetenciaAtual,
             [$mesFiltro],
-            ['QueryTimeout' => 15]
+            ['QueryTimeout' => 10]
         );
         if ($stmtCompetencia === false) {
-            die('<pre>' . htmlspecialchars(exibirErroSql('Retrocesso de competência'), ENT_QUOTES, 'UTF-8') . '</pre>');
+            die('<pre>' . htmlspecialchars(exibirErroSql('Consulta da competência selecionada'), ENT_QUOTES, 'UTF-8') . '</pre>');
         }
         $rowCompetencia = $stmtCompetencia !== false
             ? sqlsrv_fetch_array($stmtCompetencia, SQLSRV_FETCH_ASSOC)
             : false;
+
+        if (!$rowCompetencia) {
+            $sqlCompetencia = "SELECT TOP 1 MesFechamento
+                $baseCompetencia
+                    AND TRY_CONVERT(date, '01/' + MesFechamento, 103) <= TRY_CONVERT(date, '01/' + ?, 103)
+                ORDER BY TRY_CONVERT(date, '01/' + MesFechamento, 103) DESC
+                OPTION (RECOMPILE)";
+            $stmtCompetencia = sqlsrv_query(
+                $conn,
+                $sqlCompetencia,
+                [$mesFiltro],
+                ['QueryTimeout' => 15]
+            );
+            if ($stmtCompetencia === false) {
+                die('<pre>' . htmlspecialchars(exibirErroSql('Retrocesso de competência'), ENT_QUOTES, 'UTF-8') . '</pre>');
+            }
+            $rowCompetencia = $stmtCompetencia !== false
+                ? sqlsrv_fetch_array($stmtCompetencia, SQLSRV_FETCH_ASSOC)
+                : false;
+        }
     }
 
     if ($rowCompetencia) {
@@ -109,6 +185,54 @@ if ($tipoOS === 'afericao') {
         OPTION (RECOMPILE)";
     $paramsResumo = [$mesFiltro];
 } elseif ($tipoOS === 'preventiva') {
+    $juncaoProducao = '';
+    $condicaoProducao = '';
+    $paramsResumo = [$mesFiltro];
+
+    if ($paginasDesdePreventivaFiltro !== '') {
+        $juncaoProducao = "OUTER APPLY (
+                SELECT TOP 1
+                    P.TB02115_CONTTOTAL AS ContadorPreventiva
+                FROM TB02115 P
+                WHERE P.TB02115_NUMSERIE = B.Serie
+                    AND P.TB02115_PREVENTIVA = 'S'
+                ORDER BY P.TB02115_DTCAD DESC
+            ) PPREVENTIVA
+            OUTER APPLY (
+                SELECT TOP 1
+                    ISNULL(R.TB02117_MEDATUAL, 0)
+                    + ISNULL(R.TB02117_MEDATUALC, 0)
+                    + ISNULL(R.TB02117_MEDATUALDG, 0)
+                    + ISNULL(R.TB02117_MEDATUALGF, 0)
+                    + ISNULL(R.TB02117_MEDATUALGFC, 0) AS Contador2117
+                FROM TB02117 R
+                WHERE R.TB02117_NUMSERIE = B.Serie
+                    AND R.TB02117_CODIGO = B.Contrato
+                ORDER BY R.TB02117_DATA DESC
+            ) LEITURA2117
+            OUTER APPLY (
+                SELECT TOP 1
+                    ISNULL(L.TB02254_A4MONO, 0)
+                    + ISNULL(L.TB02254_A4COLOR, 0)
+                    + ISNULL(L.TB02254_SCANNER, 0)
+                    + ISNULL(L.TB02254_A3MONO, 0)
+                    + ISNULL(L.TB02254_A3COLOR, 0) AS Contador2254
+                FROM TB02254 L
+                WHERE L.TB02254_SERIALNUMBER = B.Serie
+                    AND L.TB02254_CONTRACT = B.Contrato
+                ORDER BY L.TB02254_DATEREADING DESC
+            ) LEITURA2254";
+        $condicaoProducao = "AND PPREVENTIVA.ContadorPreventiva IS NOT NULL
+            AND (
+                CASE
+                    WHEN ISNULL(LEITURA2254.Contador2254, 0) >= ISNULL(LEITURA2117.Contador2117, 0)
+                        THEN ISNULL(LEITURA2254.Contador2254, 0)
+                    ELSE ISNULL(LEITURA2117.Contador2117, 0)
+                END
+            ) - PPREVENTIVA.ContadorPreventiva >= ?";
+        $paramsResumo[] = (int) $paginasDesdePreventivaFiltro;
+    }
+
     $sqlResumo = "WITH OSABERTAS AS (
             SELECT DISTINCT
                 TB02115_NUMSERIE AS Serie
@@ -124,6 +248,7 @@ if ($tipoOS === 'afericao') {
             SUM(CASE WHEN O.Serie IS NULL THEN 1 ELSE 0 END) AS EquipamentosNaoAferidos,
             SUM(CASE WHEN O.Serie IS NOT NULL THEN 1 ELSE 0 END) AS TotalOSAberta
         FROM BM_CONTRLEITURA_ABRIROS B
+        $juncaoProducao
         LEFT JOIN OSABERTAS O ON O.Serie = B.Serie
         WHERE B.situacao <> 'I'
             AND B.libleitura = 'N'
@@ -132,10 +257,10 @@ if ($tipoOS === 'afericao') {
             $condicaoCidade
             $condicaoPatFiltro
             $condicaoNovosFiltros
+            $condicaoProducao
         GROUP BY B.Contrato, B.Cliente
         ORDER BY B.Contrato
         OPTION (RECOMPILE)";
-    $paramsResumo = [$mesFiltro];
 } else {
     $situacaoFiltro = isset($_GET['situacaoFiltro']) ? trim($_GET['situacaoFiltro']) : '';
     $modeloFiltro = isset($_GET['modeloFiltro']) ? trim($_GET['modeloFiltro']) : '';
