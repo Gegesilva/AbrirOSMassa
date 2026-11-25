@@ -1,0 +1,27 @@
+George esta trabalhando no layout das telas. avalia a regra. 
+
+1. OS de aferição (preventiva = A)
+- Consulta a TB02112 com LIBLEITURA = 'N' e situação diferente de I.
+- Filtros: competência, contrato, bairro, cidade, estado, área de intervenção, série e patrimônio.
+- Permite selecionar equipamentos e abrir OS em massa.
+- Na TB02115, verifica a mesma série com PREVENTIVA = 'A':
+  - DTFECHA nulo: exibe técnico e status e bloqueia nova abertura.
+  - DTFECHA preenchido: sinaliza a última OS existente.
+* A consulta parte da competência selecionada e retrocede mês a mês se não encontrar dados nas tabelas correspondentes.
+* A abertura exige confirmação em popup.
+2. OS preventiva (preventiva = S)
+- Leituras — TB02117 e TB02254: consultar os dados dos cinco contadores.
+- OS preventiva — TB02115: localizar a última OS com PREVENTIVA = 'S'.
+- OS corretiva/instalação — TB02115 e TB02122: considerar PREVENTIVA = 'I' ou 'N'; obter data e contador pela TB02122.
+- Exibir qts dias desde a preventiva.
+- A consulta parte da competência selecionada e retrocede mês a mês se não encontrar dados nas tabelas correspondentes.
+- A abertura exige confirmação em popup.
+3. OS de revisão interna (preventiva = I)
+- Exibe modelo, situação da TB02054, série e patrimônio.
+- Filtros: situação, modelo e série.
+- Permite abertura em massa.
+- Bloqueia nova abertura se houver, na TB02115, OS da mesma série com PREVENTIVA = 'E' e DTFECHA nulo.
+- A abertura exige confirmação em popup.
+
+
+Filtro de produção por modelo. Calcular. Última preventiva - 2254 ou 2117
