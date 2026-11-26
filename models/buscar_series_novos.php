@@ -11,6 +11,8 @@ session_write_close();
 $tipo = isset($_POST['tipo']) ? $_POST['tipo'] : '';
 $grupo = isset($_POST['grupo']) ? trim($_POST['grupo']) : '';
 $mes = isset($_POST['mes']) ? trim($_POST['mes']) : '';
+$cidadeFiltro = isset($_POST['cidade']) ? trim($_POST['cidade']) : '';
+$patFiltro = isset($_POST['patFiltro']) ? trim($_POST['patFiltro']) : '';
 $bairroFiltro = isset($_POST['bairroFiltro']) ? trim($_POST['bairroFiltro']) : '';
 $estadoFiltro = isset($_POST['estadoFiltro']) ? trim($_POST['estadoFiltro']) : '';
 $areaFiltro = isset($_POST['areaFiltro']) ? trim($_POST['areaFiltro']) : '';
@@ -143,6 +145,8 @@ if ($tipo === 'preventiva') {
             AND B.MesFechamento = ?
             AND B.situacao <> 'I'
             AND B.libleitura = 'N'
+            AND (? = '' OR B.Cidade LIKE '%' + ? + '%')
+            AND (? = '' OR B.Pat LIKE '%' + ? + '%' OR B.Serie LIKE '%' + ? + '%')
             AND (? = '' OR B.Bairro LIKE '%' + ? + '%')
             AND (? = '' OR B.Estado LIKE '%' + ? + '%')
             AND (? = '' OR B.Serie LIKE '%' + ? + '%')
@@ -170,6 +174,11 @@ if ($tipo === 'preventiva') {
     $stmt = sqlsrv_query($conn, $sql, [
         $grupo,
         $mes,
+        $cidadeFiltro,
+        $cidadeFiltro,
+        $patFiltro,
+        $patFiltro,
+        $patFiltro,
         $bairroFiltro,
         $bairroFiltro,
         $estadoFiltro,
