@@ -192,6 +192,7 @@ if (isset($_POST['contrato']) && isset($_POST['mes'])) {
     }
 
     $hasData = false;
+    $temSelecionavel = false;
 
     // Lista estilo "Cards" horizontais
     echo '<ul class="list-group list-group-flush">';
@@ -256,6 +257,9 @@ if (isset($_POST['contrato']) && isset($_POST['mes'])) {
         echo '<div class="col-md-2 text-center border-end">';
         echo ' <p class="mb-1 fw-semibold small text-dark"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" class="bi bi-clipboard-check me-1" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M10.854 6.146a.5.5 0 0 1 0 .708l-3 3a.5.5 0 0 1-.708 0l-1.5-1.5a.5.5 0 1 1 .708-.708L7.5 8.793l2.646-2.647a.5.5 0 0 1 .708 0"/><path d="M4 1.5H3a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-11a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-11a1 1 0 0 1 1-1h1z"/><path d="M9.5 1h-3a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5m-3-1h3A1.5 1.5 0 0 1 11 1.5v1A1.5 1.5 0 0 1 9.5 4h-3A1.5 1.5 0 0 1 5 2.5v-1A1.5 1.5 0 0 1 6.5 0"/></svg>Leituras OS</p>';
         echo ' <p class="mb-1 text-muted small"><strong>OS:</strong> ' . formataContador($row['OS_AFERICAO']) . '</p>';
+        if ($row['FECHAMENTO_OS_AFERICAO'] !== null) {
+            echo ' <span class="badge bg-success-subtle text-success-emphasis border border-success-subtle mb-2" style="font-size: 0.65rem;">Última OS fechada: ' . formataDado($row['FECHAMENTO_OS_AFERICAO']) . '</span>';
+        }
         echo ' <div class="d-flex flex-wrap gap-1 mb-2 justify-content-center">';
         echo '  <span class="badge bg-primary" title="Contador A4 preto e branco da OS" style="font-size: 0.65rem;">A4: ' . formataContador($row['LEITURA_OS_PB']) . '</span>';
         echo '  <span class="badge bg-primary" title="Contador A4 colorido da OS" style="font-size: 0.65rem;">A4C: ' . formataContador($row['LEITURA_OS_COR']) . '</span>';
@@ -308,6 +312,7 @@ if (isset($_POST['contrato']) && isset($_POST['mes'])) {
         echo '</div>';
 
         if ($flagatv) {
+            $temSelecionavel = true;
             // --- COLUNA 7: CHECKBOX ---
             echo '<div class="col-md-1 d-flex justify-content-center align-items-center">';
             echo '  <input 
@@ -329,6 +334,10 @@ if (isset($_POST['contrato']) && isset($_POST['mes'])) {
 
     if (!$hasData) {
         echo '<div class="text-center text-muted py-4">Nenhum equipamento pendente encontrado para este contrato no mês selecionado.</div>';
+    } elseif ($temSelecionavel) {
+        echo '<div class="text-end mt-3">';
+        echo ' <button class="btn btn-sm px-4 rounded-pill shadow-sm" onclick="gerarOS(\'' . $contrato . '\', \'\', event)">ABRIR OS SELECIONADAS</button>';
+        echo '</div>';
     }
 
     echo '</div>';
