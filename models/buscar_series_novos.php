@@ -264,7 +264,7 @@ while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
 
     if ($tipo === 'preventiva') {
         echo '<div class="col-md-2 border-end"><p class="mb-1 fw-semibold small text-dark">Localização</p><p class="mb-0 text-muted small">' . h($row['Cidade']) . ' - ' . h($row['Estado']) . '</p><p class="mb-0 text-muted small">' . h($row['Bairro']) . '</p></div>';
-        echo '<div class="col-md-3 border-end"><p class="mb-1 fw-semibold small text-dark">Última leitura - ' . dataBr($row['DataLeitura']) . '</p><div class="d-flex flex-wrap gap-1"><span class="badge bg-primary">A4: ' . numero($row['A4Mono']) . '</span><span class="badge bg-primary">A4C: ' . numero($row['A4Color']) . '</span><span class="badge bg-primary">DG: ' . numero($row['Scanner']) . '</span><span class="badge bg-primary">A3: ' . numero($row['A3Mono']) . '</span><span class="badge bg-primary">A3C: ' . numero($row['A3Color']) . '</span></div></div>';
+        echo '<div class="col-md-2 border-end"><p class="mb-1 fw-semibold small text-dark">Última leitura - ' . dataBr($row['DataLeitura']) . '</p><div class="d-flex flex-wrap gap-1"><span class="badge bg-primary">A4: ' . numero($row['A4Mono']) . '</span><span class="badge bg-primary">A4C: ' . numero($row['A4Color']) . '</span><span class="badge bg-primary">DG: ' . numero($row['Scanner']) . '</span><span class="badge bg-primary">A3: ' . numero($row['A3Mono']) . '</span><span class="badge bg-primary">A3C: ' . numero($row['A3Color']) . '</span></div></div>';
         echo '<div class="col-md-2 border-end"><p class="mb-1 fw-semibold small text-dark">Última preventiva</p><p class="mb-0 text-muted small">OS: ' . h($row['UltimaPreventiva']) . '</p><p class="mb-0 text-muted small">Data: ' . dataBr($row['DataPreventiva']) . '</p><p class="mb-0 text-muted small">Dias: ' . h($row['DiasPreventiva']) . '</p><p class="mb-0 text-muted small">Páginas: ' . numero($row['PaginasDesdePreventiva']) . '</p></div>';
         echo '<div class="col-md-2 border-end"><p class="mb-1 fw-semibold small text-dark">Corretiva/instalação</p><p class="mb-0 text-muted small">OS: ' . h($row['UltimaCorretiva']) . '</p><p class="mb-0 text-muted small">Data: ' . dataBr($row['DataIntervencao']) . '</p><p class="mb-0 text-muted small">Contador: ' . numero($row['Contador']) . '</p></div>';
     } else {
@@ -272,12 +272,16 @@ while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
         echo '<div class="col-md-3 border-end"><p class="mb-1 fw-semibold small text-dark">OS de revisão</p><p class="mb-0 text-muted small">OS: ' . h($row['OSAberta']) . '</p><p class="mb-0 text-muted small">Técnico: ' . h($row['Tecnico']) . '</p><p class="mb-0 text-muted small">Status: ' . h($row['StatusOS']) . '</p></div>';
     }
 
-    echo '<div class="col-md-1 text-center">';
+    echo '<div class="col-md-2 text-center">';
     if ($aberta) {
         $codigo = $tipo === 'preventiva' ? $row['UltimaPreventiva'] : $row['OSAberta'];
         echo '<button class="btn btn-danger disabled w-100 rounded-pill" style="font-size:.75rem">POSSUI OS ' . h($codigo) . '</button>';
     } else {
-        echo '<input class="form-check-input check-serie" type="checkbox" value="' . h($row['Serie']) . '" data-contrato="' . h($grupo) . '" checked style="transform:scale(1.4)">';
+        echo '<button class="btn btn-sm w-100 rounded-pill shadow-sm fw-bold mb-3" style="font-size:.72rem" onclick="gerarOS(\'' . h($grupo) . '\', \'' . h($row['Serie']) . '\', event)">ABRIR OS INDIVIDUAL</button>';
+        echo '<div class="form-check d-flex justify-content-center gap-2">';
+        echo '<input class="form-check-input check-serie" type="checkbox" value="' . h($row['Serie']) . '" data-contrato="' . h($grupo) . '" checked style="transform:scale(1.25)">';
+        echo '<label class="form-check-label text-muted small">Selecionar</label>';
+        echo '</div>';
     }
     echo '</div></div></li>';
 }
