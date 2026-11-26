@@ -204,7 +204,7 @@ if ($tipo === 'preventiva') {
                 O.TB02115_STATUS
             FROM TB02115 O
             WHERE O.TB02115_NUMSERIE = E.TB02054_NUMSERIE
-                AND O.TB02115_PREVENTIVA = 'E'
+                AND O.TB02115_PREVENTIVA = 'I'
                 AND O.TB02115_DTFECHA IS NULL
             ORDER BY O.TB02115_DTCAD DESC
         ) OS

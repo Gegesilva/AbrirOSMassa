@@ -83,41 +83,49 @@ if ($tipoOS !== 'revisao') {
         $rowCompetencia = $consultarCompetenciaPreventiva($mesFiltro);
 
         if (!$rowCompetencia) {
-            $sqlCompetenciasAnteriores = "WITH MESES AS (
-                    SELECT TRY_CONVERT(date, '01/' + ?, 103) AS DataCompetencia
-                    UNION ALL
-                    SELECT DATEADD(month, -1, DataCompetencia)
-                    FROM MESES
-                    WHERE DataCompetencia > '19000101'
-                )
-                SELECT
-                    FORMAT(M.DataCompetencia, 'MM/yyyy') AS MesFechamento
-                FROM MESES M
-                WHERE EXISTS (
-                    SELECT 1
+            $sqlCompetenciaAnterior = "WITH EQUIPAMENTOS_FILTRADOS AS (
+                    SELECT DISTINCT
+                        B.Serie,
+                        B.Contrato,
+                        B.MesFechamento,
+                        TRY_CONVERT(date, '01/' + B.MesFechamento, 103) AS DataCompetencia
                     $baseCompetencia
-                        AND MesFechamento = FORMAT(M.DataCompetencia, 'MM/yyyy')
                 )
-                ORDER BY M.DataCompetencia DESC
-                OPTION (MAXRECURSION 0, RECOMPILE)";
-            $stmtCompetenciasAnteriores = sqlsrv_query(
+                SELECT TOP 1 E.MesFechamento
+                FROM EQUIPAMENTOS_FILTRADOS E
+                WHERE E.DataCompetencia <= TRY_CONVERT(date, '01/' + ?, 103)
+                    AND (
+                    EXISTS (
+                    SELECT 1
+                        FROM TB02117 R
+                        WHERE R.TB02117_NUMSERIE = E.Serie
+                            AND R.TB02117_CODIGO = E.Contrato
+                            AND R.TB02117_DATA >= E.DataCompetencia
+                            AND R.TB02117_DATA < DATEADD(month, 1, E.DataCompetencia)
+                    )
+                    OR EXISTS (
+                        SELECT 1
+                        FROM TB02254 O
+                        WHERE O.TB02254_SERIALNUMBER = E.Serie
+                            AND O.TB02254_CONTRACT = E.Contrato
+                            AND O.TB02254_DATEREADING >= E.DataCompetencia
+                            AND O.TB02254_DATEREADING < DATEADD(month, 1, E.DataCompetencia)
+                    )
+                )
+                ORDER BY E.DataCompetencia DESC
+                OPTION (RECOMPILE)";
+            $stmtCompetenciaAnterior = sqlsrv_query(
                 $conn,
-                $sqlCompetenciasAnteriores,
+                $sqlCompetenciaAnterior,
                 [$mesFiltro],
-                ['QueryTimeout' => 20]
+                ['QueryTimeout' => 60]
             );
 
-            if ($stmtCompetenciasAnteriores === false) {
+            if ($stmtCompetenciaAnterior === false) {
                 die('<pre>' . htmlspecialchars(exibirErroSql('Retrocesso de competência preventiva'), ENT_QUOTES, 'UTF-8') . '</pre>');
             }
 
-            while ($competenciaAnterior = sqlsrv_fetch_array($stmtCompetenciasAnteriores, SQLSRV_FETCH_ASSOC)) {
-                $rowCompetencia = $consultarCompetenciaPreventiva($competenciaAnterior['MesFechamento']);
-
-                if ($rowCompetencia) {
-                    break;
-                }
-            }
+            $rowCompetencia = sqlsrv_fetch_array($stmtCompetenciaAnterior, SQLSRV_FETCH_ASSOC);
         }
     } else {
         $sqlCompetenciaAtual = "SELECT TOP 1 MesFechamento
@@ -138,28 +146,17 @@ if ($tipoOS !== 'revisao') {
             : false;
 
         if (!$rowCompetencia) {
-            $sqlCompetencia = "WITH MESES AS (
-                    SELECT TRY_CONVERT(date, '01/' + ?, 103) AS DataCompetencia
-                    UNION ALL
-                    SELECT DATEADD(month, -1, DataCompetencia)
-                    FROM MESES
-                    WHERE DataCompetencia > '19000101'
-                )
-                SELECT TOP 1
-                    FORMAT(M.DataCompetencia, 'MM/yyyy') AS MesFechamento
-                FROM MESES M
-                WHERE EXISTS (
-                    SELECT 1
+            $sqlCompetencia = "SELECT TOP 1 B.MesFechamento
                     $baseCompetencia
-                        AND MesFechamento = FORMAT(M.DataCompetencia, 'MM/yyyy')
-                )
-                ORDER BY M.DataCompetencia DESC
-                OPTION (MAXRECURSION 0, RECOMPILE)";
+                        AND TRY_CONVERT(date, '01/' + B.MesFechamento, 103)
+                            <= TRY_CONVERT(date, '01/' + ?, 103)
+                ORDER BY TRY_CONVERT(date, '01/' + B.MesFechamento, 103) DESC
+                OPTION (RECOMPILE)";
             $stmtCompetencia = sqlsrv_query(
                 $conn,
                 $sqlCompetencia,
                 [$mesFiltro],
-                ['QueryTimeout' => 15]
+                ['QueryTimeout' => 30]
             );
             if ($stmtCompetencia === false) {
                 die('<pre>' . htmlspecialchars(exibirErroSql('Retrocesso de competência'), ENT_QUOTES, 'UTF-8') . '</pre>');
@@ -207,51 +204,84 @@ if ($tipoOS === 'afericao') {
         OPTION (RECOMPILE)";
     $paramsResumo = [$mesFiltro];
 } elseif ($tipoOS === 'preventiva') {
+    $cteProducao = '';
     $juncaoProducao = '';
     $condicaoProducao = '';
     $paramsResumo = [$mesFiltro];
 
     if ($paginasDesdePreventivaFiltro !== '') {
-        $juncaoProducao = "OUTER APPLY (
-                SELECT TOP 1
-                    P.TB02115_CONTTOTAL AS ContadorPreventiva
-                FROM TB02115 P
-                WHERE P.TB02115_NUMSERIE = B.Serie
-                    AND P.TB02115_PREVENTIVA = 'S'
-                ORDER BY P.TB02115_DTCAD DESC
-            ) PPREVENTIVA
-            OUTER APPLY (
-                SELECT TOP 1
-                    ISNULL(R.TB02117_MEDATUAL, 0)
+        $cteProducao = ",
+        SERIES_BASE AS (
+            SELECT DISTINCT Serie FROM BASE_FILTRADA
+        ),
+        CHAVES_BASE AS (
+            SELECT DISTINCT Serie, Contrato FROM BASE_FILTRADA
+        ),
+        PREVENTIVAS_ORDENADAS AS (
+            SELECT
+                P.TB02115_NUMSERIE AS Serie,
+                P.TB02115_CONTTOTAL AS ContadorPreventiva,
+                ROW_NUMBER() OVER (
+                    PARTITION BY P.TB02115_NUMSERIE
+                    ORDER BY P.TB02115_DTCAD DESC, P.TB02115_CODIGO DESC
+                ) AS Ordem
+            FROM TB02115 P
+            INNER JOIN SERIES_BASE S ON S.Serie = P.TB02115_NUMSERIE
+            WHERE P.TB02115_PREVENTIVA = 'S'
+        ),
+        LEITURAS_2117_ORDENADAS AS (
+            SELECT
+                R.TB02117_NUMSERIE AS Serie,
+                R.TB02117_CODIGO AS Contrato,
+                ISNULL(R.TB02117_MEDATUAL, 0)
                     + ISNULL(R.TB02117_MEDATUALC, 0)
                     + ISNULL(R.TB02117_MEDATUALDG, 0)
                     + ISNULL(R.TB02117_MEDATUALGF, 0)
-                    + ISNULL(R.TB02117_MEDATUALGFC, 0) AS Contador2117
-                FROM TB02117 R
-                WHERE R.TB02117_NUMSERIE = B.Serie
-                    AND R.TB02117_CODIGO = B.Contrato
-                ORDER BY R.TB02117_DATA DESC
-            ) LEITURA2117
-            OUTER APPLY (
-                SELECT TOP 1
-                    ISNULL(L.TB02254_A4MONO, 0)
+                    + ISNULL(R.TB02117_MEDATUALGFC, 0) AS Contador,
+                ROW_NUMBER() OVER (
+                    PARTITION BY R.TB02117_NUMSERIE, R.TB02117_CODIGO
+                    ORDER BY R.TB02117_DATA DESC
+                ) AS Ordem
+            FROM TB02117 R
+            INNER JOIN CHAVES_BASE C
+                ON C.Serie = R.TB02117_NUMSERIE
+                AND C.Contrato = R.TB02117_CODIGO
+        ),
+        LEITURAS_2254_ORDENADAS AS (
+            SELECT
+                L.TB02254_SERIALNUMBER AS Serie,
+                L.TB02254_CONTRACT AS Contrato,
+                ISNULL(L.TB02254_A4MONO, 0)
                     + ISNULL(L.TB02254_A4COLOR, 0)
                     + ISNULL(L.TB02254_SCANNER, 0)
                     + ISNULL(L.TB02254_A3MONO, 0)
-                    + ISNULL(L.TB02254_A3COLOR, 0) AS Contador2254
-                FROM TB02254 L
-                WHERE L.TB02254_SERIALNUMBER = B.Serie
-                    AND L.TB02254_CONTRACT = B.Contrato
-                ORDER BY L.TB02254_DATEREADING DESC
-            ) LEITURA2254";
+                    + ISNULL(L.TB02254_A3COLOR, 0) AS Contador,
+                ROW_NUMBER() OVER (
+                    PARTITION BY L.TB02254_SERIALNUMBER, L.TB02254_CONTRACT
+                    ORDER BY L.TB02254_DATEREADING DESC
+                ) AS Ordem
+            FROM TB02254 L
+            INNER JOIN CHAVES_BASE C
+                ON C.Serie = L.TB02254_SERIALNUMBER
+                AND C.Contrato = L.TB02254_CONTRACT
+        )";
+        $juncaoProducao = "INNER JOIN PREVENTIVAS_ORDENADAS PPREVENTIVA
+                ON PPREVENTIVA.Serie = B.Serie
+                AND PPREVENTIVA.Ordem = 1
+            LEFT JOIN LEITURAS_2117_ORDENADAS LEITURA2117
+                ON LEITURA2117.Serie = B.Serie
+                AND LEITURA2117.Contrato = B.Contrato
+                AND LEITURA2117.Ordem = 1
+            LEFT JOIN LEITURAS_2254_ORDENADAS LEITURA2254
+                ON LEITURA2254.Serie = B.Serie
+                AND LEITURA2254.Contrato = B.Contrato
+                AND LEITURA2254.Ordem = 1";
         $condicaoProducao = "AND PPREVENTIVA.ContadorPreventiva IS NOT NULL
-            AND (
-                CASE
-                    WHEN ISNULL(LEITURA2254.Contador2254, 0) >= ISNULL(LEITURA2117.Contador2117, 0)
-                        THEN ISNULL(LEITURA2254.Contador2254, 0)
-                    ELSE ISNULL(LEITURA2117.Contador2117, 0)
-                END
-            ) - PPREVENTIVA.ContadorPreventiva >= ?";
+            AND CASE
+                WHEN ISNULL(LEITURA2254.Contador, 0) >= ISNULL(LEITURA2117.Contador, 0)
+                    THEN ISNULL(LEITURA2254.Contador, 0)
+                ELSE ISNULL(LEITURA2117.Contador, 0)
+            END - PPREVENTIVA.ContadorPreventiva >= ?";
         $paramsResumo[] = (int) $paginasDesdePreventivaFiltro;
     }
 
@@ -268,7 +298,8 @@ if ($tipoOS === 'afericao') {
                 $condicaoCidade
                 $condicaoPatFiltro
                 $condicaoNovosFiltros
-        ),
+        )
+        $cteProducao,
         OSABERTAS AS (
             SELECT DISTINCT
                 TB02115_NUMSERIE AS Serie
@@ -299,7 +330,7 @@ if ($tipoOS === 'afericao') {
             SELECT DISTINCT
                 TB02115_NUMSERIE AS Serie
             FROM TB02115
-            WHERE TB02115_PREVENTIVA = 'E'
+            WHERE TB02115_PREVENTIVA = 'I'
                 AND TB02115_DTFECHA IS NULL
         )
         SELECT
@@ -336,7 +367,7 @@ $stmtResumo = sqlsrv_query(
     $conn,
     $sqlResumo,
     $paramsResumo,
-    ['QueryTimeout' => $tipoOS === 'preventiva' && $paginasDesdePreventivaFiltro !== '' ? 15 : 30]
+    ['QueryTimeout' => $tipoOS === 'preventiva' && $paginasDesdePreventivaFiltro !== '' ? 60 : 30]
 );
 
 if ($stmtResumo === false) {

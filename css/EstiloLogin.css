@@ -296,3 +296,27 @@ input[type=text]:placeholder {
   /* width: 60px; */
   height: 60px;
 }
+
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.loading-overlay.is-visible {
+  display: flex;
+}
+
+.loading-box {
+  min-width: 230px;
+  padding: 2rem;
+  text-align: center;
+  color: #2b669c;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.18);
+}

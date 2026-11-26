@@ -2,9 +2,35 @@ let modalContratoAtual = '';
 let modalSerieAtual = '';
 let modalInstance = null;
 
+function mostrarCarregamento(mensagem = 'Carregando...') {
+    const overlay = document.getElementById('loadingOverlay');
+    const texto = document.getElementById('loadingMessage');
+    if (texto) texto.textContent = mensagem;
+    if (overlay) {
+        overlay.classList.add('is-visible');
+        overlay.setAttribute('aria-hidden', 'false');
+    }
+}
+
+function ocultarCarregamento() {
+    const overlay = document.getElementById('loadingOverlay');
+    if (overlay) {
+        overlay.classList.remove('is-visible');
+        overlay.setAttribute('aria-hidden', 'true');
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function () {
     modalInstance = new bootstrap.Modal(document.getElementById('modalTecnico'));
+
+    document.querySelectorAll('form').forEach(function (formulario) {
+        formulario.addEventListener('submit', function () {
+            mostrarCarregamento('Aplicando filtros...');
+        });
+    });
 });
+
+window.addEventListener('pageshow', ocultarCarregamento);
 
 function getSeriesSelecionadas(contrato = '') {
     return Array.from(document.querySelectorAll('.check-serie:checked')).filter(function (check) {
@@ -47,8 +73,14 @@ function confirmarGerarOS() {
     formData.append('contrato', modalContratoAtual);
     formData.append('tecnico', document.getElementById('selectTecnico').value || '0000');
     if (mes) formData.append('mes', mes.value);
+    ['cidadeFiltro', 'contratoFiltro', 'patFiltro', 'bairroFiltro', 'estadoFiltro', 'areaFiltro', 'serieFiltro', 'modeloFiltro', 'situacaoFiltro', 'paginasDesdePreventivaFiltro'].forEach(function (id) {
+        const campo = document.getElementById(id) || document.querySelector('[name="' + id + '"]');
+        formData.append(id, campo ? campo.value : '');
+    });
 
     botao.disabled = true;
+    modalInstance.hide();
+    mostrarCarregamento('Gerando OS...');
     fetch('models/processa_os.php', { method: 'POST', body: formData })
         .then(function (response) { return response.text(); })
         .then(function (texto) {
@@ -56,10 +88,12 @@ function confirmarGerarOS() {
             if (texto.includes('Sucesso')) {
                 location.reload();
             } else {
+                ocultarCarregamento();
                 botao.disabled = false;
             }
         })
         .catch(function () {
+            ocultarCarregamento();
             alert('Erro fatal ao comunicar com o servidor.');
             botao.disabled = false;
         });
@@ -85,6 +119,7 @@ function abrirSeries(event, contrato, linhaAtual, mes, patFiltro) {
     linhaDetalhes.style.display = 'table-row';
     if (containerConteudo.innerHTML.trim() !== '') return;
 
+    mostrarCarregamento('Buscando equipamentos...');
     containerConteudo.innerHTML = '<div class="text-center py-3"><div class="spinner-border spinner-border-sm text-primary"></div> Carregando...</div>';
     const tipo = document.body.dataset.tipoOs;
     const endpoint = tipo === 'afericao' ? 'models/buscar_series.php' : 'models/buscar_series_novos.php';
@@ -104,7 +139,8 @@ function abrirSeries(event, contrato, linhaAtual, mes, patFiltro) {
     fetch(endpoint, { method: 'POST', body: dados })
         .then(function (response) { return response.text(); })
         .then(function (html) { containerConteudo.innerHTML = html; })
-        .catch(function () { containerConteudo.innerHTML = '<div class="alert alert-danger">Erro de comunicação com o servidor.</div>'; });
+        .catch(function () { containerConteudo.innerHTML = '<div class="alert alert-danger">Erro de comunicação com o servidor.</div>'; })
+        .finally(ocultarCarregamento);
 }
 
 function toggleAll(masterCheckbox, contrato) {

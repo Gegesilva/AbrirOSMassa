@@ -24,7 +24,7 @@ George esta trabalhando no layout das telas. avalia a regra.
 - Exibe modelo, situação da TB02054, série e patrimônio.
 - Filtros: situação, modelo e série.
 - Permite abertura em massa.
-- Bloqueia nova abertura se houver, na TB02115, OS da mesma série com PREVENTIVA = 'E' e DTFECHA nulo.
+- Bloqueia nova abertura se houver, na TB02115, OS da mesma série com PREVENTIVA = 'I' e DTFECHA nulo.
 - A abertura exige confirmação em popup.
 
 

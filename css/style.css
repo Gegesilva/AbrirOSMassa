@@ -109,3 +109,33 @@ button:hover {
 	color: #fff !important;
 	border-color: #fff !important;
 }
+
+.loading-overlay {
+	position: fixed;
+	inset: 0;
+	z-index: 2000;
+	display: none;
+	align-items: center;
+	justify-content: center;
+	background: rgba(244, 247, 249, 0.88);
+	backdrop-filter: blur(3px);
+}
+
+.loading-overlay.is-visible {
+	display: flex;
+}
+
+.loading-box {
+	min-width: 230px;
+	padding: 2rem;
+	text-align: center;
+	color: var(--primary-color);
+	background: #fff;
+	border-radius: 16px;
+	box-shadow: 0 12px 35px rgba(0, 0, 0, 0.18);
+}
+
+.loading-box .spinner-border {
+	width: 3rem;
+	height: 3rem;
+}
