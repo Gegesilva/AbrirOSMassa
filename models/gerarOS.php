@@ -92,6 +92,16 @@ function gravaOS($conn, $tipo, $series, $mesReferencia = null, $tec = '0000')
         $params = array_merge([$statusOS, $tec, $nomeTipo], $series);
     } else {
         $pendente = $tipo === 'afericao' ? "AND B.Possui='Não'" : '';
+        $competencia = $tipo === 'preventiva'
+            ? "AND TRY_CONVERT(date, '01/' + B.MesFechamento, 103) = (
+                SELECT MAX(TRY_CONVERT(date, '01/' + BX.MesFechamento, 103))
+                FROM BM_CONTRLEITURA_ABRIROS BX
+                WHERE BX.Serie = B.Serie
+                    AND BX.situacao <> 'I'
+                    AND BX.libleitura = 'N'
+            )"
+            : 'AND B.MesFechamento = ?';
+        $nomeRegistro = $tipo === 'preventiva' ? $nomeTipo : $nomeTipo . ' - ' . $mesReferencia;
         $sql = "DECLARE @Geradas TABLE(Codigo VARCHAR(20));
         INSERT INTO TB02115 (
             TB02115_CODIGO,
@@ -181,10 +191,12 @@ function gravaOS($conn, $tipo, $series, $mesReferencia = null, $tec = '0000')
                 AND R.TB02117_CODIGO = B.Contrato
             ORDER BY R.TB02117_DATA DESC
         ) L
-        WHERE B.situacao <> 'I' AND B.libleitura = 'N' AND B.MesFechamento = ? $pendente AND B.Serie IN($marcas)
+        WHERE B.situacao <> 'I' AND B.libleitura = 'N' $competencia $pendente AND B.Serie IN($marcas)
         AND NOT EXISTS(SELECT 1 FROM TB02115 O WITH(UPDLOCK,HOLDLOCK) WHERE O.TB02115_NUMSERIE=B.Serie AND O.TB02115_PREVENTIVA=? AND O.TB02115_DTFECHA IS NULL);
         SELECT Codigo FROM @Geradas";
-        $params = array_merge([$statusOS, $tec, $codigoTipo, $nomeTipo . ' - ' . $mesReferencia, $mesReferencia], $series, [$codigoTipo]);
+        $paramsCabecalho = [$statusOS, $tec, $codigoTipo, $nomeRegistro];
+        if ($tipo !== 'preventiva') $paramsCabecalho[] = $mesReferencia;
+        $params = array_merge($paramsCabecalho, $series, [$codigoTipo]);
     }
     $stmt = sqlsrv_query($conn, $sql, $params);
     if ($stmt === false) {
