@@ -70,7 +70,7 @@ if ($tipoOS !== 'revisao') {
                 $conn,
                 $sqlCompetenciaPreventiva,
                 [$inicio, $inicio, $inicio, $inicio, $competencia],
-                ['QueryTimeout' => 20]
+                ['QueryTimeout' => 10]
             );
 
             if ($stmt === false) {
@@ -83,49 +83,45 @@ if ($tipoOS !== 'revisao') {
         $rowCompetencia = $consultarCompetenciaPreventiva($mesFiltro);
 
         if (!$rowCompetencia) {
-            $sqlCompetenciaAnterior = "WITH EQUIPAMENTOS_FILTRADOS AS (
-                    SELECT DISTINCT
-                        B.Serie,
-                        B.Contrato,
-                        B.MesFechamento,
-                        TRY_CONVERT(date, '01/' + B.MesFechamento, 103) AS DataCompetencia
-                    $baseCompetencia
+            $sqlCompetenciaAnterior = "WITH MESES AS (
+                    SELECT DATEADD(month, -1, TRY_CONVERT(date, '01/' + ?, 103)) AS DataCompetencia
+                    UNION ALL
+                    SELECT DATEADD(month, -1, DataCompetencia)
+                    FROM MESES
+                    WHERE DataCompetencia > '19000101'
                 )
-                SELECT TOP 1 E.MesFechamento
-                FROM EQUIPAMENTOS_FILTRADOS E
-                WHERE E.DataCompetencia <= TRY_CONVERT(date, '01/' + ?, 103)
-                    AND (
-                    EXISTS (
+                SELECT
+                    RIGHT('0' + CONVERT(varchar(2), DATEPART(month, M.DataCompetencia)), 2)
+                    + '/'
+                    + CONVERT(char(4), DATEPART(year, M.DataCompetencia)) AS MesFechamento
+                FROM MESES M
+                WHERE EXISTS (
                     SELECT 1
-                        FROM TB02117 R
-                        WHERE R.TB02117_NUMSERIE = E.Serie
-                            AND R.TB02117_CODIGO = E.Contrato
-                            AND R.TB02117_DATA >= E.DataCompetencia
-                            AND R.TB02117_DATA < DATEADD(month, 1, E.DataCompetencia)
-                    )
-                    OR EXISTS (
-                        SELECT 1
-                        FROM TB02254 O
-                        WHERE O.TB02254_SERIALNUMBER = E.Serie
-                            AND O.TB02254_CONTRACT = E.Contrato
-                            AND O.TB02254_DATEREADING >= E.DataCompetencia
-                            AND O.TB02254_DATEREADING < DATEADD(month, 1, E.DataCompetencia)
-                    )
+                    $baseCompetencia
+                        AND B.MesFechamento = RIGHT('0' + CONVERT(varchar(2), DATEPART(month, M.DataCompetencia)), 2)
+                            + '/'
+                            + CONVERT(char(4), DATEPART(year, M.DataCompetencia))
                 )
-                ORDER BY E.DataCompetencia DESC
-                OPTION (RECOMPILE)";
+                ORDER BY M.DataCompetencia DESC
+                OPTION (MAXRECURSION 0, RECOMPILE)";
             $stmtCompetenciaAnterior = sqlsrv_query(
                 $conn,
                 $sqlCompetenciaAnterior,
                 [$mesFiltro],
-                ['QueryTimeout' => 60]
+                ['QueryTimeout' => 15]
             );
 
             if ($stmtCompetenciaAnterior === false) {
                 die('<pre>' . htmlspecialchars(exibirErroSql('Retrocesso de competência preventiva'), ENT_QUOTES, 'UTF-8') . '</pre>');
             }
 
-            $rowCompetencia = sqlsrv_fetch_array($stmtCompetenciaAnterior, SQLSRV_FETCH_ASSOC);
+            while ($competenciaAnterior = sqlsrv_fetch_array($stmtCompetenciaAnterior, SQLSRV_FETCH_ASSOC)) {
+                $rowCompetencia = $consultarCompetenciaPreventiva($competenciaAnterior['MesFechamento']);
+
+                if ($rowCompetencia) {
+                    break;
+                }
+            }
         }
     } else {
         $sqlCompetenciaAtual = "SELECT TOP 1 MesFechamento
@@ -211,9 +207,6 @@ if ($tipoOS === 'afericao') {
 
     if ($paginasDesdePreventivaFiltro !== '') {
         $cteProducao = ",
-        SERIES_BASE AS (
-            SELECT DISTINCT Serie FROM BASE_FILTRADA
-        ),
         CHAVES_BASE AS (
             SELECT DISTINCT Serie, Contrato FROM BASE_FILTRADA
         ),
@@ -298,14 +291,19 @@ if ($tipoOS === 'afericao') {
                 $condicaoCidade
                 $condicaoPatFiltro
                 $condicaoNovosFiltros
+        ),
+        SERIES_BASE AS (
+            SELECT DISTINCT Serie
+            FROM BASE_FILTRADA
         )
         $cteProducao,
         OSABERTAS AS (
             SELECT DISTINCT
-                TB02115_NUMSERIE AS Serie
-            FROM TB02115
-            WHERE TB02115_PREVENTIVA = 'S'
-                AND TB02115_DTFECHA IS NULL
+                P.TB02115_NUMSERIE AS Serie
+            FROM TB02115 P
+            INNER JOIN SERIES_BASE S ON S.Serie = P.TB02115_NUMSERIE
+            WHERE P.TB02115_PREVENTIVA = 'S'
+                AND P.TB02115_DTFECHA IS NULL
         )
         SELECT
             B.Contrato,
@@ -367,7 +365,7 @@ $stmtResumo = sqlsrv_query(
     $conn,
     $sqlResumo,
     $paramsResumo,
-    ['QueryTimeout' => $tipoOS === 'preventiva' && $paginasDesdePreventivaFiltro !== '' ? 60 : 30]
+    ['QueryTimeout' => $tipoOS === 'preventiva' ? 15 : 30]
 );
 
 if ($stmtResumo === false) {

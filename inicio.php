@@ -9,6 +9,8 @@ include_once 'conexaoSQL.php';
 
 $login = $_SESSION['login'];
 $senha = $_SESSION['password'];
+session_write_close();
+
 $sql = "SELECT
         TB01066_USUARIO Usuario,
         TB01066_SENHA Senha
@@ -28,7 +30,6 @@ if ($usuario === null) {
   echo "<script>location.href='./Login.php'</script>";
   exit;
 }
-session_write_close();
 
 $sqlTecnicos = "SELECT TB01024_CODIGO, TB01024_NOME FROM TB01024 WHERE TB01024_SITUACAO = 'A' ORDER BY TB01024_NOME ASC";
 $stmtTecnicos = sqlsrv_query($conn, $sqlTecnicos);

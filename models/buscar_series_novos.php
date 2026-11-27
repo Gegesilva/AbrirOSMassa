@@ -28,7 +28,7 @@ if ($paginasDesdePreventivaFiltro !== '' && !ctype_digit($paginasDesdePreventiva
 }
 
 if ($tipo === 'preventiva') {
-    $sql = "SELECT
+    $sql = "SELECT TOP (1000)
             B.Serie,
             B.Pat AS Patrimonio,
             B.Equipamento AS Modelo,
@@ -145,6 +145,7 @@ if ($tipo === 'preventiva') {
             AND B.MesFechamento = ?
             AND B.situacao <> 'I'
             AND B.libleitura = 'N'
+            AND (L.DataLeitura IS NULL OR L.DataLeitura <= CAST(GETDATE() AS date))
             AND (? = '' OR B.Cidade LIKE '%' + ? + '%')
             AND (? = '' OR B.Pat LIKE '%' + ? + '%' OR B.Serie LIKE '%' + ? + '%')
             AND (? = '' OR B.Bairro LIKE '%' + ? + '%')
@@ -170,7 +171,9 @@ if ($tipo === 'preventiva') {
                     ) - P.TB02115_CONTTOTAL >= ?
                 )
             )
-        ORDER BY B.Serie";
+        ORDER BY
+            L.DataLeitura DESC,
+            B.Serie ASC";
     $stmt = sqlsrv_query($conn, $sql, [
         $grupo,
         $mes,

@@ -4,4 +4,4 @@
 $server = 'localhost';
 $base = 'MAQLAREM';
 $usuarioBanco = 'sa';
-$SenhaBanco = 'databit@2022';
+$SenhaBanco = '13012020';
