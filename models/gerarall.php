@@ -32,6 +32,8 @@ echo gravaOSAll($conn, $mesFiltro, $tec, $condicaoCidade, $condicaoContrato);
 
 function gravaOSAll($conn, $mesReferencia, $tec, $cidade = null, $contrato = null)
 {
+    global $STATUS_AFERICAO;
+
     $nomeOS = "Aferição - " . $mesReferencia;
 
     $sqlInsert = " DECLARE @Geradas TABLE (Codigo VARCHAR(20)); ";
@@ -80,7 +82,7 @@ function gravaOSAll($conn, $mesReferencia, $tec, $cidade = null, $contrato = nul
             Serie,
             EMAIL, 
             FONE, 
-            '27', 
+            ?, 
             'PAINEL OS MASSA',
             Codcli, 
             'I', 
@@ -153,7 +155,7 @@ function gravaOSAll($conn, $mesReferencia, $tec, $cidade = null, $contrato = nul
         SELECT Codigo FROM @Geradas;
     ";
 
-    $params = array($tec, $nomeOS, $mesReferencia);
+    $params = array($STATUS_AFERICAO, $tec, $nomeOS, $mesReferencia);
 
     $stmtInsert = sqlsrv_query($conn, $sqlInsert, $params);
 

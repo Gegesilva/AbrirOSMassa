@@ -19,10 +19,20 @@ function mensagemErroSQL($contexto)
 
 function gravaOS($conn, $tipo, $series, $mesReferencia = null, $tec = '0000')
 {
+    global $STATUS_AFERICAO;
+    global $STATUS_PREVENTIVA;
+    global $STATUS_INTERNA;
+
     $mapa = ['afericao' => ['A', 'Aferição'], 'preventiva' => ['S', 'Preventiva'], 'revisao' => ['I', 'Revisão interna']];
     if (!isset($mapa[$tipo]) || !$series)
         return 'Tipo de OS ou seleção inválida.';
     [$codigoTipo, $nomeTipo] = $mapa[$tipo];
+    $statusPorTipo = [
+        'afericao' => $STATUS_AFERICAO,
+        'preventiva' => $STATUS_PREVENTIVA,
+        'revisao' => $STATUS_INTERNA
+    ];
+    $statusOS = $statusPorTipo[$tipo];
     $marcas = implode(',', array_fill(0, count($series), '?'));
     if (!sqlsrv_begin_transaction($conn))
         return exibirErroSql('Início da transação de abertura');
@@ -42,6 +52,7 @@ function gravaOS($conn, $tipo, $series, $mesReferencia = null, $tec = '0000')
             TB02115_PREVENTIVA,
             TB02115_SITUACAO,
             TB02115_CODEMP,
+            TB02115_CODCLI,
             TB02115_NOME,
             TB02115_CONTPB,
             TB02115_CONTCOLOR,
@@ -55,7 +66,7 @@ function gravaOS($conn, $tipo, $series, $mesReferencia = null, $tec = '0000')
             ),
             GETDATE(),
             E.TB02054_NUMSERIE,
-            '27',
+            ?,
             'PAINEL OS MASSA',
             ?,
             'PAINEL OS MASSA',
@@ -65,6 +76,7 @@ function gravaOS($conn, $tipo, $series, $mesReferencia = null, $tec = '0000')
             'I',
             'A',
             E.TB02054_CODEMP,
+            '00000000',
             ?,
             E.TB02054_MEDIDORPB,
             E.TB02054_MEDIDORCOLOR,
@@ -77,7 +89,7 @@ function gravaOS($conn, $tipo, $series, $mesReferencia = null, $tec = '0000')
         ) C
         WHERE E.TB02054_NUMSERIE IN($marcas) AND NOT EXISTS(SELECT 1 FROM TB02115 O WITH(UPDLOCK,HOLDLOCK) WHERE O.TB02115_NUMSERIE=E.TB02054_NUMSERIE AND O.TB02115_PREVENTIVA='I' AND O.TB02115_DTFECHA IS NULL);
         SELECT Codigo FROM @Geradas";
-        $params = array_merge([$tec, $nomeTipo], $series);
+        $params = array_merge([$statusOS, $tec, $nomeTipo], $series);
     } else {
         $pendente = $tipo === 'afericao' ? "AND B.Possui='Não'" : '';
         $sql = "DECLARE @Geradas TABLE(Codigo VARCHAR(20));
@@ -125,7 +137,7 @@ function gravaOS($conn, $tipo, $series, $mesReferencia = null, $tec = '0000')
             B.Serie,
             B.EMAIL,
             B.FONE,
-            '27',
+            ?,
             'PAINEL OS MASSA',
             B.Codcli,
             'I',
@@ -172,7 +184,7 @@ function gravaOS($conn, $tipo, $series, $mesReferencia = null, $tec = '0000')
         WHERE B.situacao <> 'I' AND B.libleitura = 'N' AND B.MesFechamento = ? $pendente AND B.Serie IN($marcas)
         AND NOT EXISTS(SELECT 1 FROM TB02115 O WITH(UPDLOCK,HOLDLOCK) WHERE O.TB02115_NUMSERIE=B.Serie AND O.TB02115_PREVENTIVA=? AND O.TB02115_DTFECHA IS NULL);
         SELECT Codigo FROM @Geradas";
-        $params = array_merge([$tec, $codigoTipo, $nomeTipo . ' - ' . $mesReferencia, $mesReferencia], $series, [$codigoTipo]);
+        $params = array_merge([$statusOS, $tec, $codigoTipo, $nomeTipo . ' - ' . $mesReferencia, $mesReferencia], $series, [$codigoTipo]);
     }
     $stmt = sqlsrv_query($conn, $sql, $params);
     if ($stmt === false) {
@@ -225,7 +237,7 @@ function gravaOS($conn, $tipo, $series, $mesReferencia = null, $tec = '0000')
                 NULL,
                 T.TB01024_NOME,
                 'O',
-                O.TB02115_CODCLI,
+                COALESCE(O.TB02115_CODCLI, '00000000'),
                 O.TB02115_CODEMP,
                 GETDATE(),
                 '00:00',
